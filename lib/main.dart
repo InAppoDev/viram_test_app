@@ -1,4 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:viram_test_app/widgets/day_widget.dart';
+import 'package:viram_test_app/widgets/step_one_widget.dart';
+import 'package:viram_test_app/widgets/step_three_widget.dart';
+import 'package:viram_test_app/widgets/step_two_widget.dart';
+
+// Test values
+const Curve baseCurve = Curves.easeInOut;
+const Duration baseDuration = Duration(milliseconds: 500);
+const Size triangleSize = Size(34, 19.5);
 
 void main() {
   runApp(const MainApp());
@@ -12,23 +22,44 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> {
-  final GlobalKey _globalKey = GlobalKey();
-  final GlobalKey _currentStep = GlobalKey();
+  final List<GlobalKey> _stepsKeys = [
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+  ];
 
-  Size _stepSize = Size.zero;
-  Size _daySize = Size.zero;
-  Offset _dayPosition = Offset.zero;
+  final List<GlobalKey> _daysKeys = [
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+  ];
+
+  final List<Size> _stepSizes = [];
+  final List<Size> _daysSizes = [];
+  final List<Offset> _daysPositions = [];
 
   int _currentStepIndex = 0;
+  final int _currentDayIndex = 0;
+  bool isShow = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 100));
       setState(() {
-        _stepSize = getSize(_currentStep.currentContext!);
-        _daySize = getSize(_globalKey.currentContext!);
-        _dayPosition = getOffset(_globalKey.currentContext!);
+        for (var key in _stepsKeys) {
+          _stepSizes.add(_getSize(key.currentContext!));
+        }
+
+        for (var key in _daysKeys) {
+          _daysPositions.add(_getOffset(key.currentContext!));
+          _daysSizes.add(_getSize(key.currentContext!));
+        }
       });
     });
   }
@@ -36,86 +67,115 @@ class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
     Size screenSize = MediaQuery.sizeOf(context);
-    print(_currentStepIndex);
+
+    List<Widget> steps = [
+      StepOneWidget(
+        onForwardTap: _onForwardTap,
+        key: _stepsKeys[0],
+      ),
+      StepTwoWidget(
+        onBackTap: _onBackTap,
+        onForwardTap: _onForwardTap,
+        key: _stepsKeys[1],
+      ),
+      StepThreeWidget(
+        onBackTap: _onBackTap,
+        key: _stepsKeys[2],
+      ),
+    ];
+
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: 'MaisonNeue',
       ),
       home: Scaffold(
-        appBar: AppBar(
-          title: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: Image.asset(
-                  'assets/images/viram_logo.png',
-                  height: 26.49,
-                  width: 97.2,
-                ),
-              ),
-              const SizedBox(width: 14.8),
-              const Text(
-                'Week',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                  color: Color(0xFF2C2C2C),
-                ),
-              ),
-            ],
-          ),
-        ),
         body: Stack(
-          fit: StackFit.expand,
           children: [
-            //Image.asset('assets/images/bg.png'),
-            SingleChildScrollView(
-              child: Container(
-                width: 184.0,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.max,
+            Scaffold(
+              backgroundColor: Colors.white,
+              appBar: AppBar(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.white,
+                forceMaterialTransparency: true,
+                elevation: 0,
+                title: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _day0(),
-                    _day1(),
-                    _day2(),
-                    _day2(),
-                    _day2(),
-                    _day2(),
-                    _day2(),
-                    _day2(),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 7),
+                      child: Image.asset(
+                        'assets/images/viram_logo.png',
+                        height: 26.49,
+                        width: 97.2,
+                      ),
+                    ),
+                    const SizedBox(width: 14.8),
+                    const Text(
+                      'Week',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        color: Color(0xFF2C2C2C),
+                      ),
+                    ),
                   ],
                 ),
               ),
+              body: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    'assets/images/bg.png',
+                  ),
+                  SingleChildScrollView(
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          _wprowadzenieWidget(),
+                          for (var i = 0; i < _daysKeys.length; i++)
+                            DayWidget(
+                              dayNumber: i + 1,
+                              isCurrent: i == _currentDayIndex,
+                              key: _daysKeys[i],
+                              space: _stepSizes.isEmpty
+                                  ? 0
+                                  : _stepSizes[_currentStepIndex].height + 16,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             AnimatedPositioned(
-              top: _dayPosition.dy - 8,
-              right: 16 + _currentStepIndex == 0
+              top: _daysPositions.isEmpty || _daysSizes.isEmpty
                   ? 0
-                  : screenSize.width - 16 - _stepSize.width,
-              curve: Curves.decelerate,
-              duration: const Duration(seconds: 1),
-              child: _stepOne(),
-            ),
-            AnimatedPositioned(
-              top: _dayPosition.dy - 8,
-              right: 16 + _currentStepIndex == 1
-                  ? 0
-                  : screenSize.width - 16 - _stepSize.width,
-              curve: Curves.decelerate,
-              duration: const Duration(seconds: 1),
-              child: _stepTwo(),
-            ),
-            AnimatedPositioned(
-              top: _dayPosition.dy - 8,
-              right: 16 + _currentStepIndex == 2
-                  ? 0
-                  : screenSize.width - 16 - _stepSize.width,
-              curve: Curves.decelerate,
-              duration: const Duration(seconds: 1),
-              child: _stepOne(),
+                  : _daysPositions[_currentDayIndex].dy +
+                      _daysSizes[_currentDayIndex].height +
+                      8,
+              onEnd: () {
+                setState(() {
+                  isShow = true;
+                });
+              },
+              right: screenSize.width * (_currentStepIndex - 2),
+              curve: baseCurve,
+              duration: baseDuration,
+              child: AnimatedOpacity(
+                duration: baseDuration,
+                curve: baseCurve,
+                opacity: isShow ? 1 : 0,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: steps,
+                ),
+              ),
             ),
           ],
         ),
@@ -123,79 +183,19 @@ class _MainAppState extends State<MainApp> {
     );
   }
 
-  Widget _day1() {
-    return AnimatedContainer(
-      duration: const Duration(seconds: 1),
-      margin: EdgeInsets.only(bottom: _stepSize.height + 16),
-      key: _globalKey,
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2C),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Dzień 1',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 20,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                '0%',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                  height: 16 / 12,
-                  color: Color(0xFF959595),
-                ),
-              )
-            ],
-          ),
-          SizedBox(width: 58),
-          // SizedBox(
-          //   height: 39,
-          //   width: 35.0,
-          //   child: GridView.builder(
-          //     itemCount: 30,
-          //     physics: const NeverScrollableScrollPhysics(),
-          //     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          //       crossAxisCount: 6,
-          //       mainAxisSpacing: 1,
-          //       crossAxisSpacing: 1,
-          //       childAspectRatio: 1,
-          //     ),
-          //     itemBuilder: (context, index) => Container(
-          //       height: 5,
-          //       width: 5,
-          //       decoration: const BoxDecoration(
-          //         shape: BoxShape.circle,
-          //         color: Color(0xFFF1F1E7),
-          //       ),
-          //     ),
-          //   ),
-          // )
-        ],
-      ),
-    );
-  }
-
-  Container _day0() {
+  Widget _wprowadzenieWidget() {
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 0, 16.0),
+      margin: const EdgeInsets.only(bottom: 8.0),
+      width: 184.0,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Column(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Wprowadzenie',
             style: TextStyle(
               fontWeight: FontWeight.w500,
@@ -203,172 +203,19 @@ class _MainAppState extends State<MainApp> {
               color: Color(0xFF2C2C2C),
             ),
           ),
-          Text(
-            '100%',
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 12,
-              height: 16 / 12,
-              color: Color(0xFF959595),
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _day2() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: const Color(0x2C2C2C1A),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Column(
-        children: [
-          Text(
-            'Dzień 2',
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 20,
-              color: Color(0xFF2C2C2C),
-            ),
-          ),
-          Text(
-            '0%',
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 12,
-              height: 16 / 12,
-              color: Color(0xFF959595),
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _stepOne() {
-    return Container(
-      key: _currentStep,
-      width: MediaQuery.sizeOf(context).width - 32.0,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE84646),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          const SizedBox(height: 2),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              SvgPicture.asset('assets/icons/check.svg'),
+              const SizedBox(width: 6.0),
               const Text(
-                'Ustaw dzień rozpoczęcia',
+                '100%',
                 style: TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: 12,
                   height: 16 / 12,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                '1/3',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                  height: 14.56 / 12,
-                  color: Colors.white.withOpacity(.7),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 34),
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  print('onTap');
-                    setState(() {
-                      _currentStepIndex = 1;
-                    });
-                } ,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 16.0, horizontal: 20.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  onPressed: () {
-                    print('onTap');
-                    setState(() {
-                      _currentStepIndex = 1;
-                    });
-                  },
-                  child: const Text(
-                    'Jutro',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                      height: 13 / 12,
-                      color: Color(0xFF2C2C2C),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 1),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 16.0, horizontal: 20.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _currentStepIndex = 1;
-                  });
-                },
-                child: const Text(
-                  'Pojutrze',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                    height: 13 / 12,
-                    color: Color(0xFF2C2C2C),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 1),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 16.0, horizontal: 20.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentStepIndex = 1;
-                    });
-                  },
-                  child: const Text(
-                    'Najbliższy poniedziałek',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                      height: 13 / 12,
-                      color: Color(0xFF2C2C2C),
-                    ),
-                  ),
+                  color: Color(0xFF959595),
                 ),
               ),
             ],
@@ -378,154 +225,25 @@ class _MainAppState extends State<MainApp> {
     );
   }
 
-  Widget _stepTwo() {
-    return Container(
-      key: _currentStep,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE84646),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'O której chcesz rozpocząć dzień?',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                  height: 16 / 12,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                '2/3',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                  height: 14.56 / 12,
-                  color: Colors.white.withOpacity(.7),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 34),
-          SizedBox(
-            height: 48.0,
-            child: Row(
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(.1),
-                    padding: const EdgeInsets.all(16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentStepIndex = 0;
-                    });
-                  },
-                  child: const Icon(
-                    Icons.keyboard_backspace,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const Spacer(),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 17.5, horizontal: 30.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentStepIndex = 2;
-                    });
-                  },
-                  child: const Text(
-                    '6:00',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                      height: 13 / 12,
-                      color: Color(0xFF2C2C2C),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 1),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 17.5, horizontal: 30.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentStepIndex = 1;
-                    });
-                  },
-                  child: const Text(
-                    '7:00',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                      height: 13 / 12,
-                      color: Color(0xFF2C2C2C),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 1),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 17.5, horizontal: 30.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentStepIndex = 1;
-                    });
-                  },
-                  child: const Text(
-                    '8:00',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                      height: 13 / 12,
-                      color: Color(0xFF2C2C2C),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Size getSize(BuildContext context) {
+  Size _getSize(BuildContext context) {
     final box = context.findRenderObject() as RenderBox;
     return box.size;
   }
 
-  Offset getOffset(BuildContext context) {
+  Offset _getOffset(BuildContext context) {
     RenderBox box = context.findRenderObject() as RenderBox;
     return box.localToGlobal(Offset.zero);
+  }
+
+  void _onForwardTap() {
+    setState(() {
+      _currentStepIndex++;
+    });
+  }
+
+  void _onBackTap() {
+    setState(() {
+      _currentStepIndex--;
+    });
   }
 }
